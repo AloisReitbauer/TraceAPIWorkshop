@@ -12,6 +12,17 @@ This first workshop is targeted at **tracing framework providers**. In the futur
 
 ## Tracing Framework providers participating in workshop
 
+* Dynatrace
+* New Relic
+* AppDynamics
+* Lighstep
+* OpenCensus
+* AWS X-Ray
+* Nike Wingtips
+* Microsoft AppInsights
+* Zipkin
+
+
 ## Logistics
 
 Venue: tbd
