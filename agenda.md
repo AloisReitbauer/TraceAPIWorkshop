@@ -12,7 +12,7 @@ This first workshop is targeted at **tracing framework providers**. In the futur
 
 ## Tracing Examples
 
-The workshop will be very practically oriented. The basis for discussion is instrumentation of [example "micro" applications](https://github.com/AloisReitbauer/TraceAPIWorkshop/examples)
+The workshop will be very practically oriented. The basis for discussion is instrumentation of [example "micro" applications](https://github.com/AloisReitbauer/TraceAPIWorkshop/examples). These examples should be instrumented with *raw* tracing calls rather than more advanced approaches like auto-instrumentation, library wrapping etc. 
 
 ## Tracing Framework providers participating in workshop
 
