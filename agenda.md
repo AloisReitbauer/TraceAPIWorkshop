@@ -16,15 +16,7 @@ The workshop will be very practically oriented. The basis for discussion is inst
 
 ## Tracing Framework providers participating in workshop
 
-* Dynatrace
-* New Relic
-* AppDynamics
-* Lighstep
-* OpenCensus
-* AWS X-Ray
-* Nike Wingtips
-* Microsoft AppInsights
-* Zipkin
+tbd
 
 
 ## Logistics
