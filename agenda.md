@@ -26,5 +26,8 @@ Venue: tbd
 
 ## Day 1 - April 2nd 2018
 
+** Travel day. If we all arrive earlier let us have the kick of and joint dinner **
 
 ## Day 2 - April 3d 2018
+
+** Main Worskhop Day **
