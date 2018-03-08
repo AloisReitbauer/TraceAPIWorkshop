@@ -21,9 +21,9 @@ tbd
 
 ## Logistics
 
-Venue:
-New Relic HQ
-188 Spear St., Suite 1200 
+**Venue:**  
+New Relic HQ  
+188 Spear St., Suite 1200  
 San Francisco, CA USA 94105
 
 ## Day 1 - April 2nd 2018
