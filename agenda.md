@@ -21,13 +21,15 @@ tbd
 
 ## Logistics
 
-Venue: tbd
-
+Venue:
+New Relic HQ
+188 Spear St., Suite 1200 
+San Francisco, CA USA 94105
 
 ## Day 1 - April 2nd 2018
 
-**Travel day. If we all arrive earlier let us have the kick of and joint dinner**
+**Travel day. If we all arrive earlier let us have the kick off and joint dinner**
 
-## Day 2 - April 3d 2018
+## Day 2 - April 3rd 2018
 
 **Main Worskhop Day**
