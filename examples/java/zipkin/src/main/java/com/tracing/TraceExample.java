@@ -20,6 +20,7 @@ import brave.Span.Kind;
 import brave.Tracer.SpanInScope;
 import brave.propagation.TraceContextOrSamplingFlags;
 import brave.propagation.TraceContext.Extractor;
+import brave.propagation.TraceContext.Injector;
 import brave.sampler.Sampler;
 import zipkin2.reporter.Sender;
 import zipkin2.reporter.urlconnection.URLConnectionSender;
@@ -60,6 +61,7 @@ public class TraceExample {
 	}
 
 	private static void initClient(Tracing tracing) {
+		Injector<HttpURLConnection> tracingInjector = tracing.propagation().injector(HttpURLConnection::addRequestProperty);
 
 		Thread thread = new Thread(new Runnable() {
 
@@ -85,8 +87,8 @@ public class TraceExample {
 						con.setRequestMethod("GET");
 
 						// add the trace-context
-						tracing.propagation().injector(HttpURLConnection::addRequestProperty)
-							.inject(span.context(), con);
+						
+						tracingInjector.inject(span.context(), con);
 						span.start();
 
 						con.addRequestProperty("testheader", "testvalue");
@@ -131,28 +133,28 @@ public class TraceExample {
 
 	static class PathAHandler implements HttpHandler {
 		private final Tracing tracing;
+		private final Extractor<HttpExchange> tracingExtractor;
 
 		public PathAHandler(Tracing tracing) {
 			super();
 			this.tracing = tracing;
+			 // this extractor is needed, since zipkin does not support HttpExchange directly
+			 this.tracingExtractor = tracing.propagation().extractor(new brave.propagation.Propagation.Getter<HttpExchange, String>() {
+				@Override
+				public String get(HttpExchange carrier, String key) {
+					List<String> values = carrier.getRequestHeaders().get(key);
+					if (values == null) return null;
+					if (values.size() > 0) return values.get(0);
+					return null;
+				}
+			});
 		}
 
 		@Override
 		public void handle(HttpExchange t) throws IOException {
 			try {
-				// this extractor is needed, since zipkin does not support HttpExchange directly
-				Extractor<HttpExchange> extractor = tracing.propagation().extractor(new brave.propagation.Propagation.Getter<HttpExchange, String>() {
-					@Override
-					public String get(HttpExchange carrier, String key) {
-						List<String> values = carrier.getRequestHeaders().get(key);
-						if (values == null) return null;
-						if (values.size() > 0) return values.get(0);
-						return null;
-					}
-				});
-
 				// read incoming context
-				TraceContextOrSamplingFlags incomingContext = extractor.extract(t);
+				TraceContextOrSamplingFlags incomingContext = tracingExtractor.extract(t);
 				Tracer tracer = tracing.tracer();
 				// new span with parent info from incoming context
 				Span span = tracer.nextSpan(incomingContext).kind(Kind.SERVER).name("PathAHandler").start();
