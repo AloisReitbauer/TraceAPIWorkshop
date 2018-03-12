@@ -122,9 +122,20 @@ public class TraceExample {
 	}
 
 	private static void initServer(Tracing tracing) throws Exception {
+		// this extractor is needed, since zipkin does not support HttpExchange directly
+		Extractor<HttpExchange> tracingExtractor = tracing.propagation().extractor(new brave.propagation.Propagation.Getter<HttpExchange, String>() {
+			@Override
+			public String get(HttpExchange carrier, String key) {
+				List<String> values = carrier.getRequestHeaders().get(key);
+				if (values == null) return null;
+				if (values.size() > 0) return values.get(0);
+				return null;
+			}
+		});
+
 		HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
-		server.createContext("/pathA", new PathAHandler(tracing));
-		server.createContext("/pathB", new PathBHandler());
+		server.createContext("/pathA", new PathAHandler(tracing, tracingExtractor));
+		server.createContext("/pathB", new PathBHandler(tracing, tracingExtractor));
 		server.setExecutor(null); // creates a default executor
 		server.start();
 	}
@@ -135,71 +146,90 @@ public class TraceExample {
 		private final Tracing tracing;
 		private final Extractor<HttpExchange> tracingExtractor;
 
-		public PathAHandler(Tracing tracing) {
+		public PathAHandler(Tracing tracing, Extractor<HttpExchange> tracingExtractor) {
 			super();
 			this.tracing = tracing;
-			 // this extractor is needed, since zipkin does not support HttpExchange directly
-			 this.tracingExtractor = tracing.propagation().extractor(new brave.propagation.Propagation.Getter<HttpExchange, String>() {
-				@Override
-				public String get(HttpExchange carrier, String key) {
-					List<String> values = carrier.getRequestHeaders().get(key);
-					if (values == null) return null;
-					if (values.size() > 0) return values.get(0);
-					return null;
-				}
-			});
+			 this.tracingExtractor = tracingExtractor;
 		}
 
 		@Override
 		public void handle(HttpExchange t) throws IOException {
-			try {
-				// read incoming context
-				TraceContextOrSamplingFlags incomingContext = tracingExtractor.extract(t);
-				Tracer tracer = tracing.tracer();
-				// new span with parent info from incoming context
-				Span span = tracer.nextSpan(incomingContext).kind(Kind.SERVER).name("PathAHandler").start();
-				try (SpanInScope scope = tracer.withSpanInScope(span)) {
-					// simulate some server time
-					Thread.sleep(27);
+			// read incoming context
+			TraceContextOrSamplingFlags incomingContext = tracingExtractor.extract(t);
+			Tracer tracer = tracing.tracer();
+			// new span with parent info from incoming context
+			Span span = tracer.nextSpan(incomingContext).kind(Kind.SERVER).name("PathAHandler").start();
+			try (SpanInScope scope = tracer.withSpanInScope(span)) {
+				// simulate some server time
+				Thread.sleep(27);
 
-					String response = "This is path A";
-					t.sendResponseHeaders(200, response.length());
-					OutputStream os = t.getResponseBody();
-					os.write(response.getBytes());
-					System.out.println("Path A was called.");
-					os.close();
-					
-					// simulate some more time, AFTER response has been sent
-					Thread.sleep(7);
-				} catch (Exception e) {
-					span.tag("error", e.getMessage());
-				} finally {
-					// close the span
-					span.finish();
-				}
+				String response = "This is path A";
+				t.sendResponseHeaders(200, response.length());
+				OutputStream os = t.getResponseBody();
+				os.write(response.getBytes());
+				System.out.println("Path A was called.");
+				os.close();
+				
+				// simulate some more time, AFTER response has been sent
+				Thread.sleep(7);
 			} catch (Exception e) {
+				span.tag("error", e.getMessage());
 				System.err.println("Error in PathAHandler: " + e.getMessage());
 			} finally {
+				// close the span
+				span.finish();
 			}
 		}
 	}
 
 	static class PathBHandler implements HttpHandler {
+		private final Tracing tracing;
+		private final Extractor<HttpExchange> tracingExtractor;
+
+		public PathBHandler(Tracing tracing, Extractor<HttpExchange> tracingExtractor) {
+			super();
+			this.tracing = tracing;
+			 this.tracingExtractor = tracingExtractor;
+		}
+
 		@Override
 		public void handle(HttpExchange t) throws IOException {
-			String response = "This is path B";
-			t.sendResponseHeaders(200, response.length());
-			OutputStream os = t.getResponseBody();
-			os.write(response.getBytes());
-			System.out.println("Path B was called");
-			this.fakeDBCall("select * from table");
-			os.close();
+			// read incoming context
+			TraceContextOrSamplingFlags incomingContext = tracingExtractor.extract(t);
+			Tracer tracer = tracing.tracer();
+			// new span with parent info from incoming context
+			Span span = tracer.nextSpan(incomingContext).kind(Kind.SERVER).name("PathBHandler").start();
+			try (SpanInScope scope = tracer.withSpanInScope(span)) {
+
+				String response = "This is path B";
+				t.sendResponseHeaders(200, response.length());
+				OutputStream os = t.getResponseBody();
+				os.write(response.getBytes());
+				System.out.println("Path B was called");
+				this.fakeDBCall("select * from table");
+				os.close();
+
+			} catch (Exception e) {
+				span.tag("error", e.getMessage());
+				System.err.println("Error in PathAHandler: " + e.getMessage());
+			} finally {
+				// close the span
+				span.finish();
+			}
 		}
 
 		public void fakeDBCall(String statement) {
-
-			// this is just to simulate a fake database call
-			System.out.println("Fake DB was called with statement " + statement);
+			Span span = Tracing.currentTracer().nextSpan().name("database").start();
+			try (SpanInScope scope = Tracing.currentTracer().withSpanInScope(span)) {
+				// this is just to simulate a fake database call
+				System.out.println("Fake DB was called with statement " + statement);
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				span.tag("error", e.getMessage());
+				e.printStackTrace();
+			} finally {
+				span.finish();
+			}
 		}
 
 	}
