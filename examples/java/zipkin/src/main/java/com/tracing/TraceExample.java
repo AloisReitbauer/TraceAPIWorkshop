@@ -17,6 +17,7 @@ import brave.Span;
 import brave.Tracer;
 import brave.Tracing;
 import brave.Span.Kind;
+import brave.Tracer.SpanInScope;
 import brave.propagation.TraceContextOrSamplingFlags;
 import brave.propagation.TraceContext.Extractor;
 import brave.sampler.Sampler;
@@ -72,10 +73,10 @@ public class TraceExample {
 					Tracer tracer = tracing.tracer();
 					// start root span
 					Span span = tracer.nextSpan().name("client").kind(Kind.CLIENT);
-					// add additional information
-					span.tag("myrpc.version", "6.6.6");
-				
-					try {
+					try(SpanInScope scope = tracer.withSpanInScope(span)) {
+						// add additional information
+						span.tag("myrpc.version", "6.6.6");
+						
 						// call the server in a loop
 						System.out.println("Client is calling");
 						pos = (pos + 1) % 2;
@@ -155,7 +156,7 @@ public class TraceExample {
 				Tracer tracer = tracing.tracer();
 				// new span with parent info from incoming context
 				Span span = tracer.nextSpan(incomingContext).kind(Kind.SERVER).name("PathAHandler").start();
-				try {
+				try (SpanInScope scope = tracer.withSpanInScope(span)) {
 					// simulate some server time
 					Thread.sleep(27);
 
@@ -168,6 +169,8 @@ public class TraceExample {
 					
 					// simulate some more time, AFTER response has been sent
 					Thread.sleep(7);
+				} catch (Exception e) {
+					span.tag("error", e.getMessage());
 				} finally {
 					// close the span
 					span.finish();
