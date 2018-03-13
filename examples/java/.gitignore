@@ -1,0 +1,21 @@
+### Gradle stuff
+.gradle
+build/
+gradle-app.setting
+
+### IntelliJ stuff
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+classes/
+.idea_modules/
+
+### Eclipse stuff
+.project
+.settings
+.classpath
+
+### Misc stuff
+/bin/
