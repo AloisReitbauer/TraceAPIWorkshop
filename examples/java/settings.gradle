@@ -1,0 +1,4 @@
+rootProject.name = 'javatracingexamples'
+
+// To add more examples add more lines that look like: include "some-folder"
+include "example-template"

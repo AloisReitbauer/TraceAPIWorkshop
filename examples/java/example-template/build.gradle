@@ -1,0 +1,13 @@
+evaluationDependsOn(':')
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+apply plugin: "application"
+mainClassName = "template.TraceExample"
+
+dependencies {
+    compile(
+            // "com.foo:some-lib:1.0.42"
+    )
+}
