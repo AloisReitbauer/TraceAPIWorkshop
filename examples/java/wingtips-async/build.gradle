@@ -1,0 +1,16 @@
+evaluationDependsOn(':')
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+apply plugin: "application"
+mainClassName = "com.tracing.WingtipsTraceExampleAsync"
+
+dependencies {
+    compile(
+            "com.nike.wingtips:wingtips-core:0.14.1",
+            "com.nike.wingtips:wingtips-java8:0.14.1",
+            "ch.qos.logback:logback-classic:1.2.3",
+            "ch.qos.logback:logback-core:1.2.3",
+    )
+}

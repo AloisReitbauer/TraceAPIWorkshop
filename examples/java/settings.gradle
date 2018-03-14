@@ -4,3 +4,4 @@ rootProject.name = 'javatracingexamples'
 include "template"
 include "zipkin"
 include "wingtips-basic"
+include "wingtips-async"
