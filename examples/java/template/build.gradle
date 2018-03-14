@@ -4,7 +4,7 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 apply plugin: "application"
-mainClassName = "template.TraceExample"
+mainClassName = "com.tracing.TraceExample"
 
 dependencies {
     compile(
