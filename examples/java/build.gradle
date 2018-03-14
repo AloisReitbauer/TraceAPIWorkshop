@@ -1,0 +1,11 @@
+allprojects {
+    apply plugin: 'java'
+
+    group 'javatracingexamples'
+    version '1.0-SNAPSHOT'
+
+    repositories {
+        jcenter()
+        mavenCentral()
+    }
+}
