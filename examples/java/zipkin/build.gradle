@@ -1,0 +1,14 @@
+evaluationDependsOn(':')
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+apply plugin: "application"
+mainClassName = "com.tracing.TraceExample"
+
+dependencies {
+    compile(
+            "io.zipkin.brave:brave:4.17.2",
+            "io.zipkin.reporter2:zipkin-sender-urlconnection:2.4.1"
+    )
+}

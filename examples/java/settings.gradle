@@ -1,4 +1,8 @@
 rootProject.name = 'javatracingexamples'
 
 // To add more examples add more lines that look like: include "some-folder"
-include "example-template"
+include "template"
+include "template-async"
+include "zipkin"
+include "wingtips-basic"
+include "wingtips-async"
