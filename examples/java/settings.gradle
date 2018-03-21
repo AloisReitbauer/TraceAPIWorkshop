@@ -6,3 +6,4 @@ include "template-async"
 include "zipkin"
 include "wingtips-basic"
 include "wingtips-async"
+include 'opentracing'
