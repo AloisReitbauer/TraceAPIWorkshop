@@ -12,6 +12,11 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
+import com.dynatrace.oneagent.sdk.OneAgentSDKFactory;
+import com.dynatrace.oneagent.sdk.api.OneAgentSDK;
+import com.dynatrace.oneagent.sdk.api.OutgoingRemoteCallTracer;
+import com.dynatrace.oneagent.sdk.api.enums.ChannelType;
+
 /**
  * Single self contained example for a distributed micro application to
  * demonstrate how different tracing APIs instrument code
@@ -22,6 +27,7 @@ import com.sun.net.httpserver.HttpServer;
 public class TraceExample {
 
 	public static void main(String[] args) {
+		logSdkStatus();
 
 		try {
 			initServer();
@@ -30,10 +36,28 @@ public class TraceExample {
 			System.err.println("Error starting example");
 			System.err.println(ex.toString());
 		}
+	}
 
+	private static void logSdkStatus() {
+		OneAgentSDK oneAgentSdk = OneAgentSDKFactory.createInstance();
+		switch (oneAgentSdk.getCurrentState()) {
+		case ACTIVE:
+			System.out.println("dynatrace sdk ACTIVE");
+			break;
+		case PERMANENTLY_INACTIVE:
+			System.out.println("dynatrace sdk PERMANENTLY_INACTIVE");
+			break;
+		case TEMPORARILY_INACTIVE:
+			System.out.println("dynatrace sdk TEMPORARILY_INACTIVE");
+			break;
+		default:
+			System.out.println("dynatrace sdk status unknown");
+			break;
+		}
 	}
 
 	private static void initClient() {
+		OneAgentSDK sdk = OneAgentSDKFactory.createInstance();
 
 		Thread thread = new Thread(new Runnable() {
 
