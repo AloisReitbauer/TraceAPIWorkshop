@@ -3,7 +3,10 @@ rootProject.name = 'javatracingexamples'
 // To add more examples add more lines that look like: include "some-folder"
 include "template"
 include "template-async"
-include "zipkin"
+include "brave"
 include "wingtips-basic"
 include "wingtips-async"
 include 'opentracing'
+
+// Allows BOM import for simplified version management
+enableFeaturePreview('IMPROVED_POM_SUPPORT')
