@@ -1,0 +1,15 @@
+evaluationDependsOn(':')
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+apply plugin: "application"
+mainClassName = "com.tracing.TraceExample"
+
+dependencies {
+    // allows you to skip versions for standard components used by Brave
+    implementation 'io.zipkin.brave:brave-bom:4.18.2'
+
+    implementation 'io.zipkin.brave:brave'
+    implementation 'io.zipkin.reporter2:zipkin-sender-urlconnection'
+}
