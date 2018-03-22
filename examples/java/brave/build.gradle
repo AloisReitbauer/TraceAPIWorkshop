@@ -1,7 +1,8 @@
 evaluationDependsOn(':')
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+// Brave can work with Java 1.6+
+sourceCompatibility = 1.6
+targetCompatibility = 1.6
 
 apply plugin: "application"
 mainClassName = "com.tracing.TraceExample"
