@@ -1,5 +1,6 @@
 package com.tracing;
 
+import java.awt.List;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -13,6 +14,8 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import com.dynatrace.oneagent.sdk.OneAgentSDKFactory;
+import com.dynatrace.oneagent.sdk.api.IncomingRemoteCallTracer;
+import com.dynatrace.oneagent.sdk.api.LoggingCallback;
 import com.dynatrace.oneagent.sdk.api.OneAgentSDK;
 import com.dynatrace.oneagent.sdk.api.OutgoingRemoteCallTracer;
 import com.dynatrace.oneagent.sdk.api.enums.ChannelType;
@@ -25,9 +28,13 @@ import com.dynatrace.oneagent.sdk.api.enums.ChannelType;
  *
  */
 public class TraceExample {
+	private static OneAgentSDK oneAgentSdk;
 
 	public static void main(String[] args) {
+		
+		oneAgentSdk = OneAgentSDKFactory.createInstance();
 		logSdkStatus();
+		enableSdkLogging();
 
 		try {
 			initServer();
@@ -38,8 +45,23 @@ public class TraceExample {
 		}
 	}
 
+	private static void enableSdkLogging() {
+		oneAgentSdk.setLoggingCallback(new ConsoleLoggingCallback());
+	}
+
+	public static class ConsoleLoggingCallback implements LoggingCallback {
+		@Override
+		public void warn(String message) {
+			System.out.println(message);
+		}
+	
+		@Override
+		public void error(String message) {
+			System.out.println(message);
+		}
+	}
+
 	private static void logSdkStatus() {
-		OneAgentSDK oneAgentSdk = OneAgentSDKFactory.createInstance();
 		switch (oneAgentSdk.getCurrentState()) {
 		case ACTIVE:
 			System.out.println("dynatrace sdk ACTIVE");
@@ -57,13 +79,10 @@ public class TraceExample {
 	}
 
 	private static void initClient() {
-		OneAgentSDK sdk = OneAgentSDKFactory.createInstance();
-
 		Thread thread = new Thread(new Runnable() {
 
 			@Override
 			public void run() {
-
 				int pos = 0;
 				String[] pathList = { "pathA", "pathB" };
 				for (;;) {
@@ -72,15 +91,28 @@ public class TraceExample {
 						System.out.println("Client is calling");
 						pos = (pos + 1) % 2;
 						URL url = new URL("http://localhost:8000/" + pathList[pos]);
-						HttpURLConnection con = (HttpURLConnection) url.openConnection();
-						con.setRequestMethod("GET");
-						BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-						String inputLine;
-						StringBuffer content = new StringBuffer();
-						while ((inputLine = in.readLine()) != null) {
-							content.append(inputLine);
+
+						// this will arrive, because threading sensor starts a 
+						OutgoingRemoteCallTracer tracer = oneAgentSdk.traceOutgoingRemoteCall(pathList[pos], "serviceName", url.getHost(), ChannelType.OTHER, null);
+						
+						tracer.start();
+						try {
+							String dynatraceTag = tracer.getDynatraceStringTag();
+							HttpURLConnection con = (HttpURLConnection) url.openConnection();
+							con.setRequestMethod("GET");
+							con.setRequestProperty("MyDynatraceTag", dynatraceTag);
+							BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+							String inputLine;
+							StringBuffer content = new StringBuffer();
+							while ((inputLine = in.readLine()) != null) {
+								content.append(inputLine);
+							}
+							in.close();
+						} catch (Throwable e) {
+							tracer.error(e);
+						} finally {
+							tracer.end();
 						}
-						in.close();
 					} catch (Exception e) {
 						System.err.println("Failed to talk to server");
 						System.err.println(e.toString());
@@ -110,12 +142,26 @@ public class TraceExample {
 	static class PathAHandler implements HttpHandler {
 		@Override
 		public void handle(HttpExchange t) throws IOException {
-			String response = "This is path A";
-			t.sendResponseHeaders(200, response.length());
-			OutputStream os = t.getResponseBody();
-			os.write(response.getBytes());
-			System.out.println("Path A was called.");
-			os.close();
+			IncomingRemoteCallTracer tracer = oneAgentSdk.traceIncomingRemoteCall("handle", "PathAHandler", "http://localhost:8000/");
+			java.util.List<String> tags = t.getRequestHeaders().get("MyDynatraceTag");
+			if (tags.size() == 1) {
+				tracer.setDynatraceStringTag(tags.get(0));
+			} else {
+				System.err.println("zero or more than one tags");
+			}
+			tracer.start();
+				try {
+				String response = "This is path A";
+				t.sendResponseHeaders(200, response.length());
+				OutputStream os = t.getResponseBody();
+				os.write(response.getBytes());
+				System.out.println("Path A was called.");
+				os.close();
+			} catch (Throwable e) {
+				tracer.error(e);
+			} finally {
+				tracer.end();
+			}
 		}
 	}
 
