@@ -28,6 +28,9 @@ import com.dynatrace.oneagent.sdk.api.enums.ChannelType;
  *
  */
 public class TraceExample {
+	// Dynatrace SDK will only work if a Dynatrace OneAgent is installed and injected
+	// It will interact with auto-instrumentation provided by OneAgent
+	// If OneAgent is not present, OneAgentSDK will be inactive.
 	private static OneAgentSDK oneAgentSdk;
 
 	public static void main(String[] args) {
@@ -92,7 +95,6 @@ public class TraceExample {
 						pos = (pos + 1) % 2;
 						URL url = new URL("http://localhost:8000/" + pathList[pos]);
 
-						// this will arrive, because threading sensor starts a 
 						OutgoingRemoteCallTracer tracer = oneAgentSdk.traceOutgoingRemoteCall(pathList[pos], "serviceName", url.getHost(), ChannelType.OTHER, null);
 						
 						tracer.start();
