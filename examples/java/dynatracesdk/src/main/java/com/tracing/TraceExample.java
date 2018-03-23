@@ -139,20 +139,24 @@ public class TraceExample {
 		server.start();
 	}
 
+	private static void readDynatraceTag(HttpExchange t, IncomingRemoteCallTracer tracer) {
+		java.util.List<String> tags = t.getRequestHeaders().get("MyDynatraceTag");
+		if (tags.size() == 1) {
+			tracer.setDynatraceStringTag(tags.get(0));
+		} else {
+			System.err.println("zero or more than one tags");
+		}
+	}
+
 	// server side handlers
 
 	static class PathAHandler implements HttpHandler {
 		@Override
 		public void handle(HttpExchange t) throws IOException {
 			IncomingRemoteCallTracer tracer = oneAgentSdk.traceIncomingRemoteCall("handle", "PathAHandler", "http://localhost:8000/");
-			java.util.List<String> tags = t.getRequestHeaders().get("MyDynatraceTag");
-			if (tags.size() == 1) {
-				tracer.setDynatraceStringTag(tags.get(0));
-			} else {
-				System.err.println("zero or more than one tags");
-			}
+			readDynatraceTag(t, tracer);
 			tracer.start();
-				try {
+			try {
 				String response = "This is path A";
 				t.sendResponseHeaders(200, response.length());
 				OutputStream os = t.getResponseBody();
@@ -165,18 +169,28 @@ public class TraceExample {
 				tracer.end();
 			}
 		}
+
 	}
 
 	static class PathBHandler implements HttpHandler {
 		@Override
 		public void handle(HttpExchange t) throws IOException {
-			String response = "This is path B";
-			t.sendResponseHeaders(200, response.length());
-			OutputStream os = t.getResponseBody();
-			os.write(response.getBytes());
-			System.out.println("Path B was called");
-			this.fakeDBCall("select * from table");
-			os.close();
+			IncomingRemoteCallTracer tracer = oneAgentSdk.traceIncomingRemoteCall("handle", "PathBHandler", "http://localhost:8000/");
+			readDynatraceTag(t, tracer);
+			tracer.start();
+			try {
+				String response = "This is path B";
+				t.sendResponseHeaders(200, response.length());
+				OutputStream os = t.getResponseBody();
+				os.write(response.getBytes());
+				System.out.println("Path B was called");
+				this.fakeDBCall("select * from table");
+				os.close();
+			} catch (Throwable e) {
+				tracer.error(e);
+			} finally {
+				tracer.end();
+			}
 		}
 
 		public void fakeDBCall(String statement) {
