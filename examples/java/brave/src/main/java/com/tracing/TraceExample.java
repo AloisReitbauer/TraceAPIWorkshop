@@ -1,5 +1,7 @@
 package com.tracing;
 
+import brave.propagation.Propagation.Getter;
+import brave.propagation.Propagation.Setter;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -25,7 +27,6 @@ import brave.sampler.Sampler;
 import zipkin2.reporter.Sender;
 import zipkin2.reporter.urlconnection.URLConnectionSender;
 import zipkin2.reporter.AsyncReporter;
-import zipkin2.reporter.Reporter;
 
 
 
@@ -38,18 +39,39 @@ import zipkin2.reporter.Reporter;
  */
 public class TraceExample {
 
-	public static void main(String[] args) throws InterruptedException, IOException {
+	/** Brave's propagation library builds library-specific injectors and extractors */
+	static final Getter<HttpExchange, String> GETTER = new Getter<HttpExchange, String>() {
+		@Override public String get(HttpExchange carrier, String key) {
+			List<String> values = carrier.getRequestHeaders().get(key);
+			if (values == null) return null;
+			if (values.size() > 0) return values.get(0);
+			return null;
+		}
+	};
+	static final Setter<HttpURLConnection, String> SETTER = new Setter<HttpURLConnection, String>() {
+		@Override public void put(HttpURLConnection httpURLConnection, String key, String value) {
+			httpURLConnection.addRequestProperty(key, value);
+		}
+	};
+
+	public static void main(String[] args) {
 
 		final Sender sender = URLConnectionSender.create("http://localhost:9411/api/v2/spans");
-		final Reporter<zipkin2.Span> reporter = AsyncReporter.builder(sender).build();
+		final AsyncReporter<zipkin2.Span> reporter = AsyncReporter.builder(sender).build();
 		//final Reporter<zipkin2.Span> reporter = Reporter.CONSOLE;
 		final Tracing tracing = Tracing
 			.newBuilder()
 			.localServiceName("rpc-testing")
 			.spanReporter(reporter)
 			.sampler(Sampler.ALWAYS_SAMPLE) /* or any other Sampler */
-			
 			.build();
+
+		// Make sure spans get reported on control-c
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			@Override public void run() {
+				reporter.close();
+			}
+		});
 
 		try {
 			initServer(tracing);
@@ -60,8 +82,8 @@ public class TraceExample {
 		}
 	}
 
-	private static void initClient(Tracing tracing) {
-		Injector<HttpURLConnection> tracingInjector = tracing.propagation().injector(HttpURLConnection::addRequestProperty);
+	private static void initClient(final Tracing tracing) {
+		final Injector<HttpURLConnection> tracingInjector = tracing.propagation().injector(SETTER);
 
 		Thread thread = new Thread(new Runnable() {
 
@@ -75,7 +97,8 @@ public class TraceExample {
 					Tracer tracer = tracing.tracer();
 					// start root span
 					Span span = tracer.nextSpan().name("client").kind(Kind.CLIENT);
-					try(SpanInScope scope = tracer.withSpanInScope(span)) {
+					SpanInScope scope = tracer.withSpanInScope(span);
+					try {
 						// add additional information
 						span.tag("myrpc.version", "6.6.6");
 						
@@ -108,6 +131,7 @@ public class TraceExample {
 						System.err.println("Failed to talk to server");
 						System.err.println(e.toString());
 					} finally {
+						scope.close();
 						span.finish();
 					}
 					try {
@@ -123,15 +147,7 @@ public class TraceExample {
 
 	private static void initServer(Tracing tracing) throws Exception {
 		// this extractor is needed, since zipkin does not support HttpExchange directly
-		Extractor<HttpExchange> tracingExtractor = tracing.propagation().extractor(new brave.propagation.Propagation.Getter<HttpExchange, String>() {
-			@Override
-			public String get(HttpExchange carrier, String key) {
-				List<String> values = carrier.getRequestHeaders().get(key);
-				if (values == null) return null;
-				if (values.size() > 0) return values.get(0);
-				return null;
-			}
-		});
+		Extractor<HttpExchange> tracingExtractor = tracing.propagation().extractor(GETTER);
 
 		HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
 		server.createContext("/pathA", new PathAHandler(tracing, tracingExtractor));
@@ -159,7 +175,8 @@ public class TraceExample {
 			Tracer tracer = tracing.tracer();
 			// new span with parent info from incoming context
 			Span span = tracer.nextSpan(incomingContext).kind(Kind.SERVER).name("PathAHandler").start();
-			try (SpanInScope scope = tracer.withSpanInScope(span)) {
+			SpanInScope scope = tracer.withSpanInScope(span);
+			try {
 				// simulate some server time
 				Thread.sleep(27);
 
@@ -176,6 +193,7 @@ public class TraceExample {
 				span.tag("error", e.getMessage());
 				System.err.println("Error in PathAHandler: " + e.getMessage());
 			} finally {
+				scope.close();
 				// close the span
 				span.finish();
 			}
@@ -199,7 +217,8 @@ public class TraceExample {
 			Tracer tracer = tracing.tracer();
 			// new span with parent info from incoming context
 			Span span = tracer.nextSpan(incomingContext).kind(Kind.SERVER).name("PathBHandler").start();
-			try (SpanInScope scope = tracer.withSpanInScope(span)) {
+			SpanInScope scope = tracer.withSpanInScope(span);
+			try {
 
 				String response = "This is path B";
 				t.sendResponseHeaders(200, response.length());
@@ -213,6 +232,7 @@ public class TraceExample {
 				span.tag("error", e.getMessage());
 				System.err.println("Error in PathAHandler: " + e.getMessage());
 			} finally {
+				scope.close();
 				// close the span
 				span.finish();
 			}
@@ -220,7 +240,8 @@ public class TraceExample {
 
 		public void fakeDBCall(String statement) {
 			Span span = Tracing.currentTracer().nextSpan().name("database").start();
-			try (SpanInScope scope = Tracing.currentTracer().withSpanInScope(span)) {
+			SpanInScope scope = Tracing.currentTracer().withSpanInScope(span);
+			try {
 				// this is just to simulate a fake database call
 				System.out.println("Fake DB was called with statement " + statement);
 				Thread.sleep(100);
@@ -228,6 +249,7 @@ public class TraceExample {
 				span.tag("error", e.getMessage());
 				e.printStackTrace();
 			} finally {
+				scope.close();
 				span.finish();
 			}
 		}
