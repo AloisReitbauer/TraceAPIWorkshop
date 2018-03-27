@@ -59,7 +59,7 @@ public interface OneAgentSDK {
 	IncomingWebRequestTracer traceIncomingWebRequest(WebApplicationInfo webApplicationInfo, String url, String method);
 
 	/**
-	 * Traces an incoming web request.
+	 * Traces an outgoing web request.
 	 *
 	 * @param url					(parts of a) URL, which will be parsed into: scheme, hostname/port, path & query
 	 * 								Note: the hostname will be resolved by the Agent at start() call
