@@ -18,7 +18,6 @@ import com.dynatrace.oneagent.sdk.api.DatabaseRequestTracer;
 import com.dynatrace.oneagent.sdk.api.IncomingWebRequestTracer;
 import com.dynatrace.oneagent.sdk.api.LoggingCallback;
 import com.dynatrace.oneagent.sdk.api.OneAgentSDK;
-import com.dynatrace.oneagent.sdk.api.OutgoingRemoteCallTracer;
 import com.dynatrace.oneagent.sdk.api.OutgoingWebRequestTracer;
 import com.dynatrace.oneagent.sdk.api.enums.ChannelType;
 import com.dynatrace.oneagent.sdk.api.enums.DatabaseVendor;
@@ -93,39 +92,37 @@ public class TraceExample {
 				int pos = 0;
 				String[] pathList = { "pathA", "pathB" };
 				for (;;) {
+					// call the server in a loop
+					System.out.println("Client is calling");
+					pos = (pos + 1) % 2;
+					String url = "http://localhost:8000/" + pathList[pos];
+					
+					OutgoingWebRequestTracer tracer = oneAgentSdk.traceOutgoingWebRequest(url, "GET");
+
+					tracer.start();
 					try {
-						// call the server in a loop
-						System.out.println("Client is calling");
-						pos = (pos + 1) % 2;
-						URL url = new URL("http://localhost:8000/" + pathList[pos]);
+						HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+						con.setRequestMethod("GET");
 
-						OutgoingWebRequestTracer tracer = oneAgentSdk.traceOutgoingWebRequest(url.toString(), "GET");
+						// add dynatrace tag (trace context) to http header
+						con.addRequestProperty(OneAgentSDK.DYNATRACE_HTTP_HEADERNAME, tracer.getDynatraceStringTag());
 
-						tracer.start();
-						try {
-							HttpURLConnection con = (HttpURLConnection) url.openConnection();
-							con.setRequestMethod("GET");
-
-							// add dynatrace tag (trace context) to http header
-							con.addRequestProperty("X-MyTraceContext", tracer.getDynatraceStringTag());
-
-							BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-							String inputLine;
-							StringBuffer content = new StringBuffer();
-							while ((inputLine = in.readLine()) != null) {
-								content.append(inputLine);
-							}
-
-							tracer.setStatusCode(con.getResponseCode());
-							in.close();
-						} catch (Throwable t) {
-							tracer.error(t);
-						} finally {
-							tracer.end();
+						tracer.setStatusCode(con.getResponseCode());
+						
+						BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+						String inputLine;
+						StringBuffer content = new StringBuffer();
+						while ((inputLine = in.readLine()) != null) {
+							content.append(inputLine);
 						}
+						in.close();
 					} catch (Exception e) {
+						tracer.error(e);
+						
 						System.err.println("Failed to talk to server");
-						System.err.println(e.toString());
+						e.printStackTrace();
+					} finally {
+						tracer.end();
 					}
 					try {
 						Thread.sleep(1000);
@@ -152,6 +149,7 @@ public class TraceExample {
 		return values.get(0);
 	}
 
+	@SuppressWarnings("unused")
 	private static void extractAllHeaders(HttpExchange t, IncomingWebRequestTracer tracer) {
 		// read headers, if dynatrace-tracetag is found, tracing happens automatically
 		for (String key : t.getRequestHeaders().keySet()) {
@@ -173,21 +171,24 @@ public class TraceExample {
 			IncomingWebRequestTracer tracer = oneAgentSdk.traceIncomingWebRequest(webApplicationInfo, t.getRequestURI().toString(), "GET");
 
 			// trace explicitly
-			tracer.setDynatraceStringTag(getHeader(t, "X-MyTraceContext"));
+			tracer.setDynatraceStringTag(getHeader(t, OneAgentSDK.DYNATRACE_HTTP_HEADERNAME));
 
-			// trace implicitly by reading extracting all headers ("X-dynatrace" header)
-			extractAllHeaders(t, tracer);
+			// to be compatible with dynatrace default sensors, just extract all headers and tracing will happen automatically:
+			// extractAllHeaders(t, tracer);
 
 			tracer.start();
 			try {
 				String response = "This is path A";
 				t.sendResponseHeaders(200, response.length());
+				tracer.setStatusCode(200);
+
 				OutputStream os = t.getResponseBody();
 				os.write(response.getBytes());
 				System.out.println("Path A was called.");
 				os.close();
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				tracer.error(e);
+				e.printStackTrace();
 			} finally {
 				tracer.end();
 			}
@@ -203,22 +204,25 @@ public class TraceExample {
 			IncomingWebRequestTracer tracer = oneAgentSdk.traceIncomingWebRequest(webApplicationInfo, t.getRequestURI().toString(), "GET");
 
 			// trace explicitly
-			tracer.setDynatraceStringTag(getHeader(t, "X-MyTraceContext"));
+			tracer.setDynatraceStringTag(getHeader(t, OneAgentSDK.DYNATRACE_HTTP_HEADERNAME));
 
-			// trace implicitly by reading extracting all headers ("X-dynatrace" header)
-			extractAllHeaders(t, tracer);
+			// to be compatible with dynatrace default sensors, just extract all headers and tracing will happen automatically:
+			// extractAllHeaders(t, tracer);
 
 			tracer.start();
 			try {
 				String response = "This is path B";
 				t.sendResponseHeaders(200, response.length());
+				tracer.setStatusCode(200);
+
 				OutputStream os = t.getResponseBody();
 				os.write(response.getBytes());
 				System.out.println("Path B was called");
 				this.fakeDBCall("select * from table");
 				os.close();
-			} catch (Throwable e) {
+			} catch (Exception e) {
 				tracer.error(e);
+				e.printStackTrace();
 			} finally {
 				tracer.end();
 			}
@@ -231,8 +235,9 @@ public class TraceExample {
 			try {
 				// this is just to simulate a fake database call
 				System.out.println("Fake DB was called with statement " + statement);
-			} catch (Throwable t) {
-				tracer.error(t);
+			} catch (Exception e) {
+				tracer.error(e);
+				e.printStackTrace();
 			} finally {
 				tracer.end();
 			}

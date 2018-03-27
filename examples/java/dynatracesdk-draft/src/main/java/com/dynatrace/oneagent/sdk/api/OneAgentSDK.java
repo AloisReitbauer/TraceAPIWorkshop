@@ -12,6 +12,8 @@ import com.dynatrace.oneagent.sdk.api.infos.WebApplicationInfo;
  * ============================================================================================================
  */
 public interface OneAgentSDK {
+	public static final String DYNATRACE_HTTP_HEADERNAME = "X-dynaTrace";
+	
 
 	// ***** Web Server Initialization *****
 
