@@ -16,6 +16,8 @@ public interface Tracer {
 	// only to be called once, concatenation has to be handled by user, DOES NOT end tracer
 	// if multiple overloads exist, at most one of them can be called and only once
 	void error(String message);
+	
+	void error(Throwable throwable);
 
 	void end();
 

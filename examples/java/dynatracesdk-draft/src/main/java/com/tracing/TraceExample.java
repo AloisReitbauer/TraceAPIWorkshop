@@ -154,7 +154,7 @@ public class TraceExample {
 				System.out.println("Path A was called.");
 				os.close();
 			} catch (Throwable e) {
-				tracer.error(e.getMessage());
+				tracer.error(e);
 			} finally {
 				tracer.end();
 			}
@@ -179,7 +179,7 @@ public class TraceExample {
 				this.fakeDBCall("select * from table");
 				os.close();
 			} catch (Throwable e) {
-				tracer.error(e.getMessage());
+				tracer.error(e);
 			} finally {
 				tracer.end();
 			}
@@ -193,7 +193,7 @@ public class TraceExample {
 				// this is just to simulate a fake database call
 				System.out.println("Fake DB was called with statement " + statement);
 			} catch (Throwable t) {
-				tracer.error(t.getMessage());
+				tracer.error(t);
 			} finally {
 				tracer.end();
 			}

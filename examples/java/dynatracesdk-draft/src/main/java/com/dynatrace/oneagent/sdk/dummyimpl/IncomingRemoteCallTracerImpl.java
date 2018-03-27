@@ -22,6 +22,9 @@ public class IncomingRemoteCallTracerImpl extends AbstractIncomingTaggable imple
 	public void error(String message) { }
 
 	@Override
+	public void error(Throwable throwable) { }
+	
+	@Override
 	public void setProtocolName(String protocolName) { }
 
 }

@@ -22,6 +22,9 @@ public class IncomingWebRequestTracerImpl extends AbstractIncomingTaggable imple
 	public void error(String message) { }
 
 	@Override
+	public void error(Throwable throwable) { }
+
+	@Override
 	public void setRemoteAddress(String remoteAddress) { }
 
 	@Override

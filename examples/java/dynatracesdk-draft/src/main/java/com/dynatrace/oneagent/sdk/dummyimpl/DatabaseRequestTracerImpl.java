@@ -22,6 +22,9 @@ public class DatabaseRequestTracerImpl implements DatabaseRequestTracer {
 	public void error(String message) { }
 
 	@Override
+	public void error(Throwable throwable) { }
+
+	@Override
 	public void setRowsReturned(int rowsReturned) { }
 
 	@Override
