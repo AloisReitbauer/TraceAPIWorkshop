@@ -127,6 +127,15 @@ public class TraceExample {
 		server.start();
 	}
 
+	private static void extractHeaders(HttpExchange t, IncomingWebRequestTracer tracer) {
+		// read headers, if dynatrace-tracetag is found, tracing happens automatically
+		for (String key : t.getRequestHeaders().keySet()) {
+			for(String value : t.getRequestHeaders().get(key)) {
+				tracer.addRequestHeader(key, value);
+			}
+		}
+	}
+
 	// server side handlers
 
 	static class PathAHandler implements HttpHandler {
@@ -138,12 +147,7 @@ public class TraceExample {
 			// trace-context is read automatically
 			IncomingWebRequestTracer tracer = oneAgentSdk.traceIncomingWebRequest(webApplicationInfo, t.getRequestURI().toString(), "GET");
 
-			// record header properties of request (optional)
-			for (String key : t.getRequestHeaders().keySet()) {
-				for(String value : t.getRequestHeaders().get(key)) {
-					tracer.addRequestHeader(key, value);
-				}
-			}
+			extractHeaders(t, tracer);
 
 			tracer.start();
 			try {
@@ -168,6 +172,8 @@ public class TraceExample {
 		@Override
 		public void handle(HttpExchange t) throws IOException {
 			IncomingWebRequestTracer tracer = oneAgentSdk.traceIncomingWebRequest(webApplicationInfo, t.getRequestURI().toString(), "GET");
+
+			extractHeaders(t, tracer);
 
 			tracer.start();
 			try {
