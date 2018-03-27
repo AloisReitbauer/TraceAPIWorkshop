@@ -10,17 +10,14 @@ import com.dynatrace.oneagent.sdk.api.OutgoingTaggable;
  */
 public abstract class AbstractOutgoingTaggable implements OutgoingTaggable {
 
-	private String stringTag;
-	private byte[] byteTag;
-
 	@Override
 	public String getDynatraceStringTag() {
-		return stringTag;
+		return "dummy-tag";
 	}
 
 	@Override
 	public byte[] getDynatraceByteTag() {
-		return byteTag;
+		return new byte[] { 0x1, 0x2, 0x3 };
 	}
 
 }

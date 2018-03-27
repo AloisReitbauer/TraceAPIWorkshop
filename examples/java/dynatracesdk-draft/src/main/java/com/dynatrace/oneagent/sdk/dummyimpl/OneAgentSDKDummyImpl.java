@@ -30,6 +30,11 @@ public class OneAgentSDKDummyImpl implements OneAgentSDK {
 	}
 
 	@Override
+	public OutgoingWebRequestTracer traceOutgoingWebRequest(String url, String method) {
+		return new OutgoingWebRequestTracerImpl(url, method);
+	}
+
+	@Override
 	public DatabaseRequestTracer traceSQLDatabaseRequest(DatabaseInfo databaseConfig, String statement) {
 		return new DatabaseRequestTracerImpl(statement);
 	}
@@ -60,5 +65,4 @@ public class OneAgentSDKDummyImpl implements OneAgentSDK {
 
 	@Override
 	public void addCustomRequestAttribute(String key, double value) { }
-
 }

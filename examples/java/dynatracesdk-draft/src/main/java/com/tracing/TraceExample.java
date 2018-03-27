@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.util.List;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -17,6 +18,8 @@ import com.dynatrace.oneagent.sdk.api.DatabaseRequestTracer;
 import com.dynatrace.oneagent.sdk.api.IncomingWebRequestTracer;
 import com.dynatrace.oneagent.sdk.api.LoggingCallback;
 import com.dynatrace.oneagent.sdk.api.OneAgentSDK;
+import com.dynatrace.oneagent.sdk.api.OutgoingRemoteCallTracer;
+import com.dynatrace.oneagent.sdk.api.OutgoingWebRequestTracer;
 import com.dynatrace.oneagent.sdk.api.enums.ChannelType;
 import com.dynatrace.oneagent.sdk.api.enums.DatabaseVendor;
 import com.dynatrace.oneagent.sdk.api.infos.DatabaseInfo;
@@ -95,15 +98,31 @@ public class TraceExample {
 						System.out.println("Client is calling");
 						pos = (pos + 1) % 2;
 						URL url = new URL("http://localhost:8000/" + pathList[pos]);
-						HttpURLConnection con = (HttpURLConnection) url.openConnection();
-						con.setRequestMethod("GET");
-						BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-						String inputLine;
-						StringBuffer content = new StringBuffer();
-						while ((inputLine = in.readLine()) != null) {
-							content.append(inputLine);
+
+						OutgoingWebRequestTracer tracer = oneAgentSdk.traceOutgoingWebRequest(url.toString(), "GET");
+
+						tracer.start();
+						try {
+							HttpURLConnection con = (HttpURLConnection) url.openConnection();
+							con.setRequestMethod("GET");
+
+							// add dynatrace tag (trace context) to http header
+							con.addRequestProperty("X-MyTraceContext", tracer.getDynatraceStringTag());
+
+							BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+							String inputLine;
+							StringBuffer content = new StringBuffer();
+							while ((inputLine = in.readLine()) != null) {
+								content.append(inputLine);
+							}
+
+							tracer.setStatusCode(con.getResponseCode());
+							in.close();
+						} catch (Throwable t) {
+							tracer.error(t);
+						} finally {
+							tracer.end();
 						}
-						in.close();
 					} catch (Exception e) {
 						System.err.println("Failed to talk to server");
 						System.err.println(e.toString());
@@ -127,7 +146,13 @@ public class TraceExample {
 		server.start();
 	}
 
-	private static void extractHeaders(HttpExchange t, IncomingWebRequestTracer tracer) {
+	private static String getHeader(HttpExchange t, String key) {
+		List<String> values = t.getRequestHeaders().get(key);
+		if (values == null || values.isEmpty()) return null;
+		return values.get(0);
+	}
+
+	private static void extractAllHeaders(HttpExchange t, IncomingWebRequestTracer tracer) {
 		// read headers, if dynatrace-tracetag is found, tracing happens automatically
 		for (String key : t.getRequestHeaders().keySet()) {
 			for(String value : t.getRequestHeaders().get(key)) {
@@ -147,7 +172,11 @@ public class TraceExample {
 			// trace-context is read automatically
 			IncomingWebRequestTracer tracer = oneAgentSdk.traceIncomingWebRequest(webApplicationInfo, t.getRequestURI().toString(), "GET");
 
-			extractHeaders(t, tracer);
+			// trace explicitly
+			tracer.setDynatraceStringTag(getHeader(t, "X-MyTraceContext"));
+
+			// trace implicitly by reading extracting all headers ("X-dynatrace" header)
+			extractAllHeaders(t, tracer);
 
 			tracer.start();
 			try {
@@ -173,7 +202,11 @@ public class TraceExample {
 		public void handle(HttpExchange t) throws IOException {
 			IncomingWebRequestTracer tracer = oneAgentSdk.traceIncomingWebRequest(webApplicationInfo, t.getRequestURI().toString(), "GET");
 
-			extractHeaders(t, tracer);
+			// trace explicitly
+			tracer.setDynatraceStringTag(getHeader(t, "X-MyTraceContext"));
+
+			// trace implicitly by reading extracting all headers ("X-dynatrace" header)
+			extractAllHeaders(t, tracer);
 
 			tracer.start();
 			try {
