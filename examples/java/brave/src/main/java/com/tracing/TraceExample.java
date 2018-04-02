@@ -100,7 +100,6 @@ public class TraceExample {
 					SpanInScope scope = tracer.withSpanInScope(span);
 					try {
 						// add additional information
-						span.tag("myrpc.version", "6.6.6");
 						
 						// call the server in a loop
 						System.out.println("Client is calling");
@@ -108,16 +107,18 @@ public class TraceExample {
 						URL url = new URL("http://localhost:8000/" + pathList[pos]);
 						HttpURLConnection con = (HttpURLConnection) url.openConnection();
 						con.setRequestMethod("GET");
-
+						
+						span.tag("http.url", url.toString());
+						span.tag("http.method", "GET");
 						// add the trace-context
 						
 						tracingInjector.inject(span.context(), con);
 						span.start();
-
+						
 						con.addRequestProperty("testheader", "testvalue");
-
+						
 						con.connect();
-
+						
 						BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
 						String inputLine;
 						StringBuffer content = new StringBuffer();
@@ -125,6 +126,7 @@ public class TraceExample {
 							content.append(inputLine);
 						}
 						in.close();
+						span.tag("http.status_code", Integer.toString(con.getResponseCode()));
 					} catch (Exception e) {
 						span.tag("error", e.getMessage()); // exception tagging
 
@@ -182,6 +184,10 @@ public class TraceExample {
 
 				String response = "This is path A";
 				t.sendResponseHeaders(200, response.length());
+				span.tag("http.url", t.getRequestURI().toString());
+				span.tag("http.method", t.getRequestMethod());
+				span.tag("http.status_code", "200");
+
 				OutputStream os = t.getResponseBody();
 				os.write(response.getBytes());
 				System.out.println("Path A was called.");
@@ -191,7 +197,7 @@ public class TraceExample {
 				Thread.sleep(7);
 			} catch (Exception e) {
 				span.tag("error", e.getMessage());
-				System.err.println("Error in PathAHandler: " + e.getMessage());
+				e.printStackTrace();
 			} finally {
 				scope.close();
 				// close the span
@@ -222,6 +228,10 @@ public class TraceExample {
 
 				String response = "This is path B";
 				t.sendResponseHeaders(200, response.length());
+				span.tag("http.url", t.getRequestURI().toString());
+				span.tag("http.method", t.getRequestMethod());
+				span.tag("http.status_code", "200");
+
 				OutputStream os = t.getResponseBody();
 				os.write(response.getBytes());
 				System.out.println("Path B was called");
@@ -230,7 +240,7 @@ public class TraceExample {
 
 			} catch (Exception e) {
 				span.tag("error", e.getMessage());
-				System.err.println("Error in PathAHandler: " + e.getMessage());
+				e.printStackTrace();
 			} finally {
 				scope.close();
 				// close the span
@@ -242,6 +252,10 @@ public class TraceExample {
 			Span span = Tracing.currentTracer().nextSpan().name("database").start();
 			SpanInScope scope = Tracing.currentTracer().withSpanInScope(span);
 			try {
+				span.tag("db.instance", "mySampleDb");
+				span.tag("db.type", "sql");
+				span.tag("db.statement", statement);
+				
 				// this is just to simulate a fake database call
 				System.out.println("Fake DB was called with statement " + statement);
 				Thread.sleep(100);
@@ -253,6 +267,5 @@ public class TraceExample {
 				span.finish();
 			}
 		}
-
 	}
 }
