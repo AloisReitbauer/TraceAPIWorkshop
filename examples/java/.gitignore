@@ -1,6 +1,7 @@
 ### https://raw.github.com/github/gitignore/da00310ccba9de9a988cc973ef5238ad2c1460e9/java.gitignore
 
 *.class
+classes/
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
